@@ -12,8 +12,20 @@ const Login = () => {
 
     const onSubmit = async (data) => {
         const { email, password } = data;
+        // Fixed admin credentials
+        if (email === "admin@gmail.com" && password === "admin12") {
+            // persist role for app-wide checks
+            localStorage.setItem("app_role", "admin");
+            localStorage.setItem("app_email", email);
+            // always go to home (Home component will render AdminHome for admin role)
+            navigate("/");
+            return;
+        }
+
         try {
             const result = await signIn(email, password);
+            // remove any fixed-role flag (if present)
+            localStorage.removeItem("app_role");
 
             setTimeout(() => {
                 navigate(`${location.state ? location.state : "/"}`)

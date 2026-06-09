@@ -1,14 +1,17 @@
-import React from 'react'
-import Banner from '../../component/Banner/Banner'
+import React from "react";
+import useUserRole from "../../component/Hooks/useUserRole";
+import DocHome from "./DocHome";
+import UserHome from "./UserHome";
+import AdminHome from "./AdminHome";
 
 const Home = () => {
-  return (
-    <div className=''>
-      <Banner></Banner>
-      <div>the home </div>
-    </div>
-    
-  )
-}
+  const { role, loading } = useUserRole();
 
-export default Home
+  if (loading ) return <div className="flex justify-center items-center h-screen">Loading...</div>;
+
+  if (role === "admin") return <AdminHome />;
+  if (role === "doctor") return <DocHome />;
+  return <UserHome />;
+};
+
+export default Home;

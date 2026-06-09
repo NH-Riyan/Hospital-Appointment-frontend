@@ -2,132 +2,77 @@ import React, { useContext, useEffect, useState, useRef } from 'react'
 import { useForm } from 'react-hook-form';
 import { Link,  useNavigate } from 'react-router';
 import { AuthContext } from '../../Context/AuthContext';
+import axios from 'axios';
+import useAxiosSecure from '../../component/Hooks/useAxiosSecure';
 
 const Register = () => {
     const { register, handleSubmit, watch, setValue, trigger, formState: { errors } } = useForm();
     const role = watch('role');
-
-
-
-    useEffect(() => {
-        register('degrees', {
-            validate: value => {
-                if (role === 'doctor') return (value && value.length > 0) || 'Select at least one degree'
-                return true
-            }
-        })
-    }, [register, role])
-
-    // degrees multi-select state
-    const degreeOptions = [
-        'MBBS','MD','MS','FCPS','PhD','BDS','MDS','DM','MPhil','DNB','MCh','FRCS','MBChB','DO','PA','NP'
-    ];
-    // specialty single-select state
-    const specialtyOptions = [
-        'General Practitioner','Cardiology','Dermatology','Pediatrics','Surgery','Neurology','Orthopedics','Oncology','Psychiatry','Radiology','Anesthesiology','Ophthalmology','ENT','Urology','Other'
-    ];
-    const [selectedSpecialty, setSelectedSpecialty] = useState('');
-    const [specQuery, setSpecQuery] = useState('');
-    const [specOpen, setSpecOpen] = useState(false);
-    const specRef = useRef(null);
-
-    const [selectedDegrees, setSelectedDegrees] = useState([]);
-    const [degQuery, setDegQuery] = useState('');
-    const [degOpen, setDegOpen] = useState(false);
-    const degRef = useRef(null);
-
-    useEffect(() => {
-        // update form value whenever selectedDegrees changes
-        setValue('degrees', selectedDegrees);
-        // if role is doctor, trigger validation when degrees change
-        if (role === 'doctor') trigger('degrees');
-    }, [selectedDegrees, setValue, role, trigger]);
-
-    useEffect(() => {
-        // register specialty and validate only when doctor
-        register('specialty', {
-            validate: v => {
-                if (role === 'doctor') return (v && v !== '') || 'Select specialty'
-                return true
-            }
-        })
-    }, [register, role])
-
-    useEffect(() => {
-        // clear degrees if role changed away from doctor
-        if (role !== 'doctor') {
-            setSelectedDegrees([]);
-            setDegQuery('');
-        }
-    }, [role]);
-
-    useEffect(() => {
-        const onClick = (e) => { 
-                if (degRef.current && !degRef.current.contains(e.target)) 
-                setDegOpen(false);
-            };
-        
-        document.addEventListener('click', onClick);
-        return () => document.removeEventListener('click', onClick);
-    }, []);
-
-    useEffect(() => {
-        const onClick = (e) => { 
-            if (specRef.current && !specRef.current.contains(e.target)) 
-                setSpecOpen(false); 
-        };
-        document.addEventListener('click', onClick);
-        return () => document.removeEventListener('click', onClick);
-    }, []);
-
-  const filteredDegrees = degreeOptions.filter(d => d.toLowerCase().includes(degQuery.toLowerCase()) && !selectedDegrees.includes(d));
-  
-  const addDegree = (d) => {
-     setSelectedDegrees(prev => [...prev, d]); 
-     setDegQuery(''); 
-     setDegOpen(false); 
-    };
-  
-  const removeDegree = (d) => { 
-    setSelectedDegrees(prev => prev.filter(x => x !== d)); 
-    };
-
-        const filteredSpecialties = specialtyOptions.filter(s => s.toLowerCase().includes(specQuery.toLowerCase()));
-        const chooseSpecialty = (s) => 
-            { 
-                setSelectedSpecialty(s); 
-                setSpecQuery(''); 
-                setSpecOpen(false); 
-            };
-        const clearSpecialty = () => { 
-            setSelectedSpecialty(''); 
-        }
-
-        useEffect(() => {
-            setValue('specialty', selectedSpecialty);
-            if (role === 'doctor') trigger('specialty');
-        }, [selectedSpecialty, setValue, role, trigger]);
-
-    const { createUser } = useContext(AuthContext);
+    const { createUser, updateUserProfile } = useContext(AuthContext);
+    const [dp,setDP] = useState('');
     const navigate = useNavigate();
-  
-  
-  const onSubmit = async (data) => {
-    const{name, phone, email, password, role} = data;
+    const axiosSecure = useAxiosSecure();
 
-    createUser(email, password)
-    .then( async (result) => {
-      const user = result.user;
-      console.log(user);
 
-      setTimeout(() => {
-          navigate("/auth/login");
-        }, 1500);
-    })
-    .catch(error => {
-      console.error(error);
-    })
-  };
+    const onSubmit = async (data) => {
+        const { name, phone, email, password, role } = data;
+
+        try {
+            const result = await createUser(email, password);
+            const createdUser = result.user;
+            console.log(createdUser);
+
+        
+            if (updateUserProfile && name) {
+                    await updateUserProfile({ displayName: name , photoURL: dp});
+                }
+        } catch (error) {
+            console.error("Error creating user:", error);
+            return;
+        }
+
+            const userData = {
+                name,
+                phone,
+                email,
+                photoURL: dp,
+                role
+            };
+
+       
+            const endpoint = role === 'doctor' ? '/doctors' : '/users';
+
+            try { 
+                const response = await axiosSecure.post(endpoint, userData);
+                 console.log("Success:", response.data);
+            }catch (err) {
+               console.error("Error saving user:", err);
+           }
+
+            navigate("/auth/login");
+        
+    };
+
+    const handleimage = async (e) => {
+        const file = e.target.files && e.target.files[0];
+
+        if (!file) {
+            setDP('');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('image', file);
+
+        try {
+            const imgURL = `https://api.imgbb.com/1/upload?key=${import.meta.env.VITE_imgbb_key}`;
+            const res = await axios.post(imgURL, formData);
+            setDP(res?.data?.data?.display_url || '');
+        } catch (err) {
+            console.error('Image upload failed:', err);
+            setDP('');
+        }
+    }
 
   return (
      <div className="flex justify-center items-center py-34 bg-blue-200">
@@ -178,9 +123,8 @@ const Register = () => {
                         <label className="label">Upload Profile Image</label>
                         <input
                             type="file"
+                            onChange={handleimage}
                             className="file-input file-input-bordered w-full"
-                            accept="image/*"
-                            {...register("image", { required: false })}
                         />
                     </div>
                 </div>
@@ -226,67 +170,6 @@ const Register = () => {
                     {errors.role && <p className='text-red-500'>Please select account type</p>}
                 </div>
 
-                {role === 'doctor' && (
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                       <div ref={specRef}>
-                           <label className="label mb-2">Doctor Specialty</label>
-                           <div className="relative">
-                               <div>
-                                   <input
-                                       className="input input-bordered w-full"
-                                       placeholder="Search specialty..."
-                                       value={selectedSpecialty || specQuery}
-                                       onChange={e => { setSpecQuery(e.target.value); setSelectedSpecialty(''); setSpecOpen(true); }}
-                                       onFocus={() => setSpecOpen(true)}
-                                   />
-                               </div>
-
-                               {specOpen && filteredSpecialties.length > 0 && (
-                                   <ul className="absolute z-50 left-0 right-0 bg-white border rounded shadow max-h-56 overflow-auto">
-                                       {filteredSpecialties.map(s => (
-                                           <li key={s} className="px-3 py-2 hover:bg-gray-100 cursor-pointer" onClick={() => chooseSpecialty(s)}>{s}</li>
-                                       ))}
-                                   </ul>
-                               )}
-                           </div>
-                           {errors.specialty && <p className='text-red-500'>{errors.specialty.message || errors.specialty}</p>}
-                       </div>
-
-                        <div ref={degRef}>
-                            <label className="label mb-2">Degrees (choose one or more)</label>
-                            <div className="relative">
-                                <div className="flex flex-wrap  gap-2 mb-2">
-                                    {selectedDegrees.map(d => (
-                                        <span key={d} className="badge badge-outline flex items-center gap-2">
-                                            {d}
-                                            <button type="button" onClick={() => removeDegree(d)} className="btn btn-ghost btn-xs">✕</button>
-                                        </span>
-                                    ))}
-                                    <div className="flex-1 min-w-full">
-                                        <input
-                                            className="input input-bordered w-full"
-                                            placeholder="Search degrees..."
-                                            value={degQuery}
-                                            onChange={e => { setDegQuery(e.target.value); setDegOpen(true); }}
-                                            onFocus={() => setDegOpen(true)}
-                                        />
-                                    </div>
-                                </div>
-
-                                 {degOpen && filteredDegrees.length > 0 && (
-                                                    <ul className="absolute z-50 left-0 right-0 bg-white border rounded shadow max-h-56 overflow-auto">
-                                                        {filteredDegrees.map(d => (
-                                                            <li key={d} className="px-3 py-2 hover:bg-gray-100 cursor-pointer" onClick={() => addDegree(d)}>{d}</li>
-                                                        ))}
-                                                    </ul>
-                                                )}
-                                            </div>
-                                            {errors.degrees && <p className='text-red-500'>{errors.degrees.message || errors.degrees}</p>}
-                                        </div>
-                                    </div>
-                                )}
-
-                  {  /* Register Button */}
                  <button className="btn btn-neutral mt-6 w-full">Register</button>
 
             </fieldset>
@@ -296,7 +179,6 @@ const Register = () => {
                 <Link to="/auth/login" className="text-blue-600 ml-2">Login</Link>
             </p>
         </form>
-        {/* <ToastContainer /> */}
     </div>
   )
 }

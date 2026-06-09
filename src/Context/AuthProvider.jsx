@@ -9,12 +9,14 @@ const AuthProvider = ({children}) => {
 
     const createUser = (email, password) => {
         setLoading(true);
-        return createUserWithEmailAndPassword(auth, email, password);
+        return createUserWithEmailAndPassword(auth, email, password)
+            .finally(() => setLoading(false));
     }
 
     const signIn = (email, password) => {
         setLoading(true);
-        return signInWithEmailAndPassword(auth, email, password);
+        return signInWithEmailAndPassword(auth, email, password)
+            .finally(() => setLoading(false));
     }
 
     const updateUserProfile = profileInfo => {
@@ -23,7 +25,11 @@ const AuthProvider = ({children}) => {
 
     const logOut = () => {
         setLoading(true);
-        return signOut(auth);
+        // clear any persisted app role (fixed admin)
+        localStorage.removeItem("app_role");
+        localStorage.removeItem("app_email");
+        return signOut(auth)
+            .finally(() => setLoading(false));
     }
 
     useEffect(() => {
