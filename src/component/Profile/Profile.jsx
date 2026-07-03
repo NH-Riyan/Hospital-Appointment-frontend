@@ -8,7 +8,7 @@ const Profile = () => {
 
   // ⏳ While role is loading
   if (loading) {
-    return <div className="text-center mt-10">Loading...</div>;
+    return <span className="loading loading-infinity loading-xl"></span>;
   }
 
   // ❌ If no role found

@@ -86,6 +86,15 @@ const DocProfile = () => {
 
   const merged = { ...(user || {}), ...(profileData || {}) };
 
+  const normalizeAvailability = (value) => {
+    if (typeof value === "boolean") return value ? "yes" : "no";
+    if (typeof value === "string") {
+      const normalized = value.toLowerCase().trim();
+      return normalized === "yes" || normalized === "true" ? "yes" : "no";
+    }
+    return "no";
+  };
+
   // ✅ Fetch profile using axiosSecure
   useEffect(() => {
     if (!user?.email) return;
@@ -121,6 +130,7 @@ const DocProfile = () => {
         workingDays: merged.workingDays || "",
         visitingHours: merged.visitingHours || "",
         bio: merged.bio || "",
+        availability: normalizeAvailability(merged.availability),
         photoURL: merged.photoURL || "",
       });
 
@@ -192,6 +202,7 @@ const DocProfile = () => {
       workingDays: data.workingDays,
       visitingHours: data.visitingHours,
       bio: data.bio,
+      availability: data.availability || "no",
       status: "pending",
     };
 
@@ -216,6 +227,7 @@ const DocProfile = () => {
         workingDays: updated.workingDays || "",
         visitingHours: updated.visitingHours || "",
         bio: updated.bio || "",
+        availability: normalizeAvailability(updated.availability),
         photoURL: updated.photoURL || "",
       });
       setImageUrl(updated.photoURL || "");
@@ -231,16 +243,20 @@ const DocProfile = () => {
   };
 
   if (loading) {
-    return <div className="text-center mt-10">Loading...</div>;
-  }
+  return (
+    <div className="flex justify-center items-center h-screen">
+      <span className="loading loading-infinity loading-xl"></span>
+    </div>
+  );
+}
 
   return (
-  <div className="max-w-4xl mx-auto p-6">
-    <div className="rounded-3xl shadow-xl bg-gradient-to-b from-white to-gray-300 p-8">
+  <div className="max-w-5xl mx-auto p-6">
+    <div className="rounded-3xl border border-white/10 bg-white/70 backdrop-blur-2xl shadow-2xl p-8">
 
       
       <div className="flex flex-col items-center mb-8">
-        <div className="w-40 h-40 rounded-full overflow-hidden border-4 border-white shadow-lg bg-white">
+        <div className="w-45 h-45 rounded-full overflow-hidden border-4 border-white shadow-lg bg-white">
           {imageUrl ? (
             <img src={imageUrl} alt="doctor" className="w-full h-full object-cover" />
           ) : (
@@ -257,10 +273,10 @@ const DocProfile = () => {
       <div className="flex justify-end mb-6">
         <button
           onClick={() => setEditMode(!editMode)}
-          className={`px-5 py-2 rounded-xl text-sm font-medium transition shadow-sm ${
+          className={`px-6 py-2 rounded-full text-sm font-medium transition-all duration-300 shadow-lg hover:scale-105 ${
             editMode
-              ? "bg-rose-100 text-rose-600"
-              : "bg-teal-100 text-teal-700"
+              ? "bg-red-500/90 text-white hover:bg-red-600"
+              : "bg-gradient-to-r from-indigo-500 via-blue-500 to-teal-400 text-white"
           }`}
         >
           {editMode ? "Cancel" : "Edit Profile"}
@@ -276,7 +292,7 @@ const DocProfile = () => {
           <div>
             <label className="text-sm text-slate-600">Full Name</label>
             <input
-              className="input input-bordered w-full focus:border-teal-400"
+              className="w-full px-4 py-3 rounded-xl bg-white/70 border border-slate-300 text-slate-700 placeholder:text-slate-400 focus:ring-2 focus:ring-teal-400 outline-none disabled:bg-slate-100 disabled:text-slate-500"
               {...register("fullName")}
               disabled={!editMode}
             />
@@ -285,7 +301,7 @@ const DocProfile = () => {
           <div>
             <label className="text-sm text-slate-600">Email</label>
             <input
-              className="input input-bordered w-full bg-slate-100"
+              className="w-full px-4 py-3 rounded-xl bg-slate-100 border border-slate-200 text-slate-500 outline-none"
               {...register("email")}
               disabled
             />
@@ -295,9 +311,9 @@ const DocProfile = () => {
         <div>
           <label className="text-sm text-slate-600">Phone</label>
           <input
-            className="input input-bordered w-full focus:border-teal-400"
+            className="w-full px-4 py-3 rounded-xl bg-white/70 border border-slate-300 text-slate-700 placeholder:text-slate-400 focus:ring-2 focus:ring-teal-400 outline-none disabled:bg-slate-100 disabled:text-slate-500"
             {...register("phone")}
-            disabled
+            disabled={!editMode}
           />
         </div>
 
@@ -307,7 +323,7 @@ const DocProfile = () => {
           <div ref={specRef} className="relative">
             <label className="text-sm text-slate-600">Doctor Specialty</label>
             <input
-              className="input input-bordered w-full"
+              className="w-full px-4 py-3 rounded-xl bg-white/70 border border-slate-300 text-slate-700 placeholder:text-slate-400 focus:ring-2 focus:ring-teal-400 outline-none disabled:bg-slate-100 disabled:text-slate-500"
               placeholder="Search specialty..."
               value={selectedSpecialty || specQuery}
               onChange={(e) => {
@@ -362,7 +378,7 @@ const DocProfile = () => {
             </div>
 
             <input
-              className="input input-bordered w-full"
+              className="w-full px-4 py-3 rounded-xl bg-white/70 border border-slate-300 text-slate-700 placeholder:text-slate-400 focus:ring-2 focus:ring-teal-400 outline-none disabled:bg-slate-100 disabled:text-slate-500"
               placeholder="Search degrees..."
               value={degQuery}
               onChange={(e) => {
@@ -405,7 +421,7 @@ const DocProfile = () => {
           <div>
             <label className="text-sm text-slate-600">Experience</label>
             <input
-              className="input input-bordered w-full"
+              className="w-full px-4 py-3 rounded-xl bg-white/70 border border-slate-300 text-slate-700 placeholder:text-slate-400 focus:ring-2 focus:ring-teal-400 outline-none disabled:bg-slate-100 disabled:text-slate-500"
               {...register("experience")}
               disabled={!editMode}
             />
@@ -414,7 +430,7 @@ const DocProfile = () => {
           <div>
             <label className="text-sm text-slate-600">Fee</label>
             <input
-              className="input input-bordered w-full"
+              className="w-full px-4 py-3 rounded-xl bg-white/70 border border-slate-300 text-slate-700 placeholder:text-slate-400 focus:ring-2 focus:ring-teal-400 outline-none disabled:bg-slate-100 disabled:text-slate-500"
               {...register("fee")}
               disabled={!editMode}
             />
@@ -427,7 +443,7 @@ const DocProfile = () => {
           <div>
             <label className="text-sm text-slate-600">Working Days</label>
             <input
-              className="input input-bordered w-full"
+              className="w-full px-4 py-3 rounded-xl bg-white/70 border border-slate-300 text-slate-700 placeholder:text-slate-400 focus:ring-2 focus:ring-teal-400 outline-none disabled:bg-slate-100 disabled:text-slate-500"
               {...register("workingDays")}
               disabled={!editMode}
             />
@@ -436,7 +452,7 @@ const DocProfile = () => {
           <div>
             <label className="text-sm text-slate-600">Visiting Hours</label>
             <input
-              className="input input-bordered w-full"
+              className="w-full px-4 py-3 rounded-xl bg-white/70 border border-slate-300 text-slate-700 placeholder:text-slate-400 focus:ring-2 focus:ring-teal-400 outline-none disabled:bg-slate-100 disabled:text-slate-500"
               {...register("visitingHours")}
               disabled={!editMode}
             />
@@ -444,13 +460,27 @@ const DocProfile = () => {
         </div>
 
      
-        <div>
-          <label className="text-sm text-slate-600">Bio</label>
-          <textarea
-            className="textarea textarea-bordered w-full"
-            {...register("bio")}
-            disabled={!editMode}
-          />
+        <div className="grid md:grid-cols-2 gap-5">
+          <div>
+            <label className="text-sm text-slate-600">Availability</label>
+            <select
+              className="w-full px-4 py-3 rounded-xl bg-white/70 border border-slate-300 text-slate-700 focus:ring-2 focus:ring-teal-400 outline-none disabled:bg-slate-100 disabled:text-slate-500"
+              {...register("availability")}
+              disabled={!editMode}
+            >
+              <option value="yes">Yes</option>
+              <option value="no">No</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-sm text-slate-600">Bio</label>
+            <textarea
+              className="w-full px-4 py-3 rounded-xl bg-white/70 border border-slate-300 text-slate-700 placeholder:text-slate-400 focus:ring-2 focus:ring-teal-400 outline-none disabled:bg-slate-100 disabled:text-slate-500"
+              {...register("bio")}
+              disabled={!editMode}
+            />
+          </div>
         </div>
 
         {/* IMAGE */}
@@ -460,14 +490,14 @@ const DocProfile = () => {
             <input
               type="file"
               onChange={handleImage}
-              className="file-input file-input-bordered w-full"
+              className="mt-2 w-full text-sm border border-slate-300 rounded-xl text-slate-600 file:bg-gradient-to-r file:from-indigo-500 file:to-teal-400 file:text-white file:border-0 file:px-4 file:py-2 file:rounded-lg"
             />
           </div>
         )}
 
         {/* SAVE */}
         {editMode && (
-          <button className="w-full py-3 rounded-xl bg-teal-600 text-white font-medium hover:bg-teal-700 transition">
+          <button className="w-full py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-indigo-500 via-blue-500 to-teal-400 hover:opacity-90 transition">
             Save Profile
           </button>
         )}

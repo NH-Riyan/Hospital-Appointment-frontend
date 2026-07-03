@@ -34,8 +34,7 @@ const UserProfile = () => {
     fetchProfile();
   }, [user?.email, axiosSecure]);
 
- -
-  useEffect(() => {
+  -useEffect(() => {
     if (!loading) {
       const data = { ...(user || {}), ...(profileData || {}) };
 
@@ -54,7 +53,6 @@ const UserProfile = () => {
   useEffect(() => {
     setValue("photoURL", imageUrl);
   }, [imageUrl, setValue]);
-
 
   const handleImage = async (e) => {
     const file = e.target.files?.[0];
@@ -90,7 +88,6 @@ const UserProfile = () => {
     }
   };
 
-  
   const submit = async (data) => {
     const payload = {
       name: data.fullName,
@@ -104,7 +101,6 @@ const UserProfile = () => {
     try {
       await axiosSecure.put(`/user-profile?email=${user.email}`, payload);
 
-      
       setProfileData(payload);
 
       reset({
@@ -124,111 +120,121 @@ const UserProfile = () => {
 
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center text-gray-500">
-        Loading profile...
+      <div className="flex justify-center items-center h-screen">
+        <span className="loading loading-infinity loading-xl"></span>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-6 bg-gradient-to-br from-sky-50 via-blue-50 to-teal-50">
-      <div className="w-full max-w-2xl rounded-3xl shadow-xl bg-white/70 backdrop-blur-xl border border-blue-100 p-6">
-        
-        <div className="flex flex-col items-center mb-6">
-          <div className="w-36 h-36 rounded-full overflow-hidden shadow-lg border-4 border-white bg-gradient-to-br from-blue-100 to-teal-100">
-            {imageUrl ? (
-              <img src={imageUrl} className="w-full h-full object-cover" />
-            ) : (
-              <div className="flex items-center justify-center h-full text-slate-400">
-                No Image
+    <div className=" relative flex items-center justify-center  p-5 overflow-hidden">
+      {/* MAIN CARD */}
+      <div className="relative w-full max-w-2xl rounded-3xl border border-white/10 bg-white/70 backdrop-blur-2xl shadow-2xl p-8">
+        {/* TOP PROFILE SECTION */}
+        <div className="flex flex-col items-center text-center mb-8">
+          {/* avatar */}
+          <div className="relative">
+            <div className="w-40 h-40 rounded-full p-[3px] shadow-xl">
+              <div className="w-full h-full rounded-full overflow-hidden ">
+                {imageUrl ? (
+                  <img src={imageUrl} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-slate-400">
+                    No Image
+                  </div>
+                )}
               </div>
-            )}
+            </div>
+
+            {/* glow */}
           </div>
 
-          <h2 className="mt-4 text-2xl font-semibold text-slate-700">
+          {/* name */}
+          <h2 className="mt-2 text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-slate-500 via-blue-600 to-slate-800">
             {merged.name || merged.displayName || "User Profile"}
           </h2>
+
+          <p className="text-slate-400 text-sm mt-5">
+            Manage your account settings & personal details
+          </p>
         </div>
 
-       
+        {/* EDIT BUTTON */}
         <div className="flex justify-end mb-6">
           <button
             onClick={() => setEditMode(!editMode)}
-            className={`px-5 py-2 rounded-full text-sm font-medium transition shadow-sm
-          ${
-            editMode
-              ? "bg-red-100 text-red-600 hover:bg-red-200"
-              : "bg-gradient-to-r from-blue-500 to-teal-500 text-white hover:opacity-90"
-          }`}
+            className={`px-6 py-2 rounded-full text-sm font-medium transition-all duration-300 shadow-lg hover:scale-105 ${
+              editMode
+                ? "bg-red-500/90 text-white hover:bg-red-600"
+                : "bg-gradient-to-r from-indigo-500 via-blue-500 to-teal-400 text-white"
+            }`}
           >
-            {editMode ? "Cancel" : "Edit Profile"}
+            {editMode ? "Cancel Edit" : "Edit Profile"}
           </button>
         </div>
 
-        
-        <form onSubmit={handleSubmit(submit)} className="space-y-5">
-        
+        {/* FORM CARD AREA */}
+        <form onSubmit={handleSubmit(submit)} className="space-y-6">
           <div>
             <label className="text-sm text-slate-600 mb-1 block">
               Full Name
             </label>
             <input
-              className="input w-full bg-white/80 border border-blue-100 focus:outline-none focus:ring-2 focus:ring-teal-300 rounded-xl"
+              className="w-full px-4 py-3 rounded-xl bg-white/5 border border-slate-300 text-slate-400 focus:ring-2 focus:ring-indigo-400 outline-none"
               {...register("fullName")}
               disabled={!editMode}
             />
           </div>
 
-         
           <div>
-            <label className="text-sm text-slate-600 mb-1 block">Email</label>
+            <label className="text-sm text-slate-600  mb-1 block">Email</label>
             <input
-              className="input w-full bg-white/60 border border-blue-100 rounded-xl text-slate-500"
+              className="w-full px-4 py-3 rounded-xl bg-white/5 border border-slate-300 text-slate-400"
               {...register("email")}
               disabled
             />
           </div>
 
-     
           <div>
             <label className="text-sm text-slate-600 mb-1 block">Phone</label>
             <input
-              className="input w-full bg-white/80 border border-blue-100 focus:ring-2 focus:ring-teal-300 rounded-xl"
+              className="w-full px-4 py-3 rounded-xl bg-white/5 border border-slate-300 text-slate-400 focus:ring-2 focus:ring-indigo-400"
               {...register("phone")}
               disabled={!editMode}
             />
           </div>
 
-         
           <div>
-            <label className="text-sm text-slate-600 mb-1 block">Address</label>
+            <label className="text-sm text-slate-600 b mb-1 block">
+              Address
+            </label>
             <input
-              className="input w-full bg-white/80 border border-blue-100 focus:ring-2 focus:ring-teal-300 rounded-xl"
+              className="w-full px-4 py-3 rounded-xl bg-white/5 border border-slate-300 text-slate-400 focus:ring-2 focus:ring-indigo-400"
               {...register("address")}
               disabled={!editMode}
             />
           </div>
 
-        
+          {/* upload */}
           {editMode && (
-            <div>
-              <label className="text-sm text-slate-600 mb-1 block">
-                Profile Image
-              </label>
+            <div className="p-4 rounded-xl border border-dashed border-white/20 bg-white/5">
+              <label className="text-sm text-slate-600">Profile Image</label>
+
               <input
                 type="file"
-                className="file-input file-input-bordered w-full rounded-xl"
+                className="mt-2 w-full text-sm border border-slate-300 rounded-xl text-slate-300 file:bg-gradient-to-r file:from-indigo-500 file:to-teal-400 file:text-white file:border-0 file:px-4 file:py-2 file:rounded-lg"
                 onChange={handleImage}
               />
+
               {uploading && (
-                <p className="text-sm text-teal-500 mt-1">Uploading image...</p>
+                <p className="text-teal-300 text-sm mt-2">Uploading...</p>
               )}
             </div>
           )}
 
-          {/* SAVE */}
+          {/* save */}
           {editMode && (
-            <button className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-500 via-indigo-500 to-teal-500 text-white font-medium shadow-md hover:scale-[1.01] transition">
+            <button className="w-full py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-indigo-500 via-blue-500 to-teal-400 hover:opacity-90 transition">
               Save Changes
             </button>
           )}

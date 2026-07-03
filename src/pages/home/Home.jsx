@@ -7,8 +7,12 @@ import AdminHome from "./AdminHome";
 const Home = () => {
   const { role, loading } = useUserRole();
 
-  if (loading ) return <div className="flex justify-center items-center h-screen">Loading...</div>;
-
+  if (loading)
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <span className="loading loading-infinity loading-xl"></span>
+      </div>
+    );
   if (role === "admin") return <AdminHome />;
   if (role === "doctor") return <DocHome />;
   return <UserHome />;

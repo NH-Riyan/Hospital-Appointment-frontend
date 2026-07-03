@@ -14,6 +14,25 @@ const useAxiosSecure = () => {
     []
   );
 
+  // Add response interceptor to handle 304 caching issues
+  useEffect(() => {
+    const responseInterceptor = axiosSecure.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response?.status === 304) {
+          // Force cache bypass for 304 responses
+          error.config.headers["Cache-Control"] = "no-cache";
+          return axiosSecure.request(error.config);
+        }
+        return Promise.reject(error);
+      }
+    );
+
+    return () => {
+      axiosSecure.interceptors.response.eject(responseInterceptor);
+    };
+  }, [axiosSecure]);
+
   useEffect(() => {
     const requestInterceptor = axiosSecure.interceptors.request.use(
       async (config) => {

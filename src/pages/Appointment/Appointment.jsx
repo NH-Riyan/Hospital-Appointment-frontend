@@ -6,17 +6,16 @@ import PatientAppointments from './PatientAppointments';
 const Appointment = () => {
   const { role, loading } = useUserRole();
 
+  console.log('User role:', role);
+
   // Loading state
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <span className="loading loading-spinner loading-lg text-blue-500" />
-          <p className="text-gray-400 text-sm">Loading appointments…</p>
-        </div>
-      </div>
-    );
-  }
+ if (loading) {
+  return (
+    <div className="flex items-center justify-center h-screen">
+      <span className="loading loading-infinity loading-xl"></span>
+    </div>
+  );
+}
 
   // No role or unauthorized
   if (!role) {

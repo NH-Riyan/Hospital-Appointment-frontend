@@ -4,12 +4,29 @@ import { useQuery } from "@tanstack/react-query";
 import Swal from "sweetalert2";
 import useAxiosSecure from "../../component/Hooks/useAxiosSecure";
 import { AuthContext } from "../../Context/AuthContext";
-import { HiArrowLeft, HiOutlineCalendar, HiOutlineClock, HiOutlineUser } from "react-icons/hi";
+import {
+  HiArrowLeft,
+  HiOutlineCalendar,
+  HiOutlineClock,
+  HiOutlineUser,
+  HiOutlineDocumentText,
+  HiOutlineLink,
+} from "react-icons/hi2";
 import { TbCurrencyTaka } from "react-icons/tb";
-import { MdVerified, MdOutlineWorkOutline, MdOutlineEmail } from "react-icons/md";
+import {
+  MdVerified,
+  MdOutlineWorkOutline,
+  MdOutlineEmail,
+} from "react-icons/md";
 import { RiStethoscopeLine } from "react-icons/ri";
+import useUserRole from "../../component/Hooks/useUserRole";
 
 const AppointmentDetails = () => {
+  const { role } = useUserRole();
+  const pageBg =
+    role === "doctor"
+      ? "bg-gradient-to-b from-cyan-700 via-white to-cyan-700"
+      : "bg-gradient-to-br from-teal-600 via-white to-teal-600";
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -23,7 +40,11 @@ const AppointmentDetails = () => {
   const passedTotalAppointments = stateData.totalAppointments;
 
   // Fetch appointment details
-  const { data: appointment = {}, isLoading: aptLoading, isError: aptError } = useQuery({
+  const {
+    data: appointment = {},
+    isLoading: aptLoading,
+    isError: aptError,
+  } = useQuery({
     queryKey: ["appointmentDetails", id],
     queryFn: async () => {
       const res = await axiosSecure.get(`/appointments/${id}`);
@@ -41,121 +62,68 @@ const AppointmentDetails = () => {
     enabled: !!appointment.doctorId,
   });
 
+  // Fetch patient info using the appointment's patient email
+  const patientEmailFromAppointment =
+    appointment?.patientEmail || appointment?.patient?.email || null;
 
-  // Fetch patient info using email
   const { data: patient = {}, isLoading: patientLoading } = useQuery({
-    queryKey: ["patient", user?.email],
+    queryKey: ["patient", patientEmailFromAppointment],
     queryFn: async () => {
-      const res = await axiosSecure.get(`/patient/${user.email}`);
+      const res = await axiosSecure.get(
+        `/patient/${patientEmailFromAppointment}`,
+      );
       return res.data;
     },
-    enabled: !!user?.email,
+    enabled: !!patientEmailFromAppointment,
   });
 
-  // Fetch all appointments for this doctor on this date (only if not coming from PatientAppointments)
-  const dateStr = appointment.appointmentDate ? new Date(appointment.appointmentDate).toISOString().split('T')[0] : null;
+  // Fetch all appointments for this doctor on this date
+  const dateStr = appointment.appointmentDate
+    ? new Date(appointment.appointmentDate).toISOString().split("T")[0]
+    : null;
   const { data: doctorAppointmentsOnDate = [] } = useQuery({
     queryKey: ["doctorAppointmentsOnDate", appointment.doctorId, dateStr],
     queryFn: async () => {
       const res = await axiosSecure.get(
-        `/appointments/doctor/${appointment.doctorId}?date=${dateStr}`
+        `/appointments/doctor/${appointment.doctorId}?date=${dateStr}`,
       );
-      // Sort by bookedAt time to get the queue order
       const sorted = (res.data || []).sort((a, b) => {
         return new Date(a.bookedAt).getTime() - new Date(b.bookedAt).getTime();
       });
       return sorted;
     },
-    // Always fetch appointments for the doctor on this date when we have the doctor and date.
     enabled: !!appointment.doctorId && !!dateStr,
   });
 
   // Use passed data if available, otherwise calculate from fetched data
-  const serialNumber = passedSerialNumber || (doctorAppointmentsOnDate.findIndex(
-    (a) => a._id === appointment._id
-  ) + 1);
-  
-  const totalAppointments = passedTotalAppointments || doctorAppointmentsOnDate.length;
+  const serialNumber =
+    passedSerialNumber ||
+    doctorAppointmentsOnDate.findIndex((a) => a._id === appointment._id) + 1;
 
-  // Count visited today (appointments with visited=true on the same date)
-  const visitedTodayCount = doctorAppointmentsOnDate.filter((a) => {
-    if (!a.visited) return false;
-    const aDate = new Date(a.appointmentDate).toISOString().split("T")[0];
-    return aDate === dateStr;
-  }).length;
-
-  // Helper: check if current time is within visiting hours string (e.g. "09:00 - 12:30")
-  const isNowWithinVisitingHours = (visitingHoursStr, appointmentDateIso) => {
-    try {
-      if (!visitingHoursStr || !appointmentDateIso) return false;
-      const aptDate = new Date(appointmentDateIso);
-      const now = new Date();
-      if (
-        aptDate.getFullYear() !== now.getFullYear() ||
-        aptDate.getMonth() !== now.getMonth() ||
-        aptDate.getDate() !== now.getDate()
-      )
-        return false;
-
-      const parseToken = (tok) => {
-        if (!tok) return null;
-        const t = tok.trim().toLowerCase();
-        const m = t.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/);
-        if (!m) return null;
-        let hh = Number(m[1]);
-        const mm = m[2] ? Number(m[2]) : 0;
-        const ap = m[3];
-        if (ap) {
-          if (ap === "pm" && hh < 12) hh += 12;
-          if (ap === "am" && hh === 12) hh = 0;
-        }
-        return { hh, mm };
-      };
-
-      const tokens = (visitingHoursStr.match(/(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)/gi) || []).filter(Boolean);
-      let startTok = tokens[0];
-      let endTok = tokens[1];
-      if (!startTok || !endTok) {
-        const parts = visitingHoursStr.split("-");
-        startTok = startTok || parts[0];
-        endTok = endTok || parts[1];
-      }
-
-      const startParsed = parseToken(startTok);
-      const endParsed = parseToken(endTok);
-      if (!startParsed || !endParsed) return false;
-
-      const start = new Date(aptDate);
-      start.setHours(startParsed.hh, startParsed.mm, 0, 0);
-      const end = new Date(aptDate);
-      end.setHours(endParsed.hh, endParsed.mm, 0, 0);
-
-      return now >= start && now <= end;
-    } catch (e) {
-      return false;
-    }
-  };
-
+  const totalAppointments =
+    passedTotalAppointments || doctorAppointmentsOnDate.length;
 
   const isLoading = aptLoading || doctorLoading || patientLoading;
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <span className="loading loading-spinner loading-lg text-blue-500" />
-          <p className="text-gray-400 text-sm">Loading appointment details…</p>
-        </div>
+      <div className="flex items-center justify-center h-screen">
+        <span className="loading loading-infinity loading-xl"></span>
       </div>
     );
   }
 
   if (aptError) {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4">
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
         <p className="text-4xl">⚠️</p>
-        <p className="text-gray-700 font-bold">Failed to load appointment details</p>
-        <button onClick={() => navigate(-1)} className="btn btn-sm btn-primary rounded-lg">
+        <p className="text-gray-700 font-bold">
+          Failed to load appointment details
+        </p>
+        <button
+          onClick={() => navigate(-1)}
+          className="btn btn-sm btn-primary rounded-lg"
+        >
           Go Back
         </button>
       </div>
@@ -166,9 +134,12 @@ const AppointmentDetails = () => {
     appointmentDate = null,
     status = "pending",
     note = "",
+    reportLink = "", // ✅ GET REPORT LINK
     bookedAt = null,
     fee = "N/A",
     visitingHours = "N/A",
+    appointmentType = "general",
+    visited = false,
   } = appointment;
 
   const {
@@ -177,15 +148,12 @@ const AppointmentDetails = () => {
     specialty = "N/A",
   } = doctor;
 
-  const {
-    name: patientName = "N/A",
-    photoURL: patientPhoto = null,
-    email: patientEmail = "N/A",
-  } = patient;
+  const patientName = patient?.name || appointment?.patientName || "N/A";
+  const patientPhoto = patient?.photoURL || appointment?.patientPhoto || null;
+  const patientEmail = patient?.email || appointment?.patientEmail || "N/A";
 
   const appointmentDateObj = appointmentDate ? new Date(appointmentDate) : null;
   const bookedAtObj = bookedAt ? new Date(bookedAt) : null;
-
 
   const handleCancelAppointment = async () => {
     const result = await Swal.fire({
@@ -199,7 +167,6 @@ const AppointmentDetails = () => {
       cancelButtonText: "No, Keep It",
     });
 
-    // Only proceed if user confirmed
     if (!result.isConfirmed) {
       return;
     }
@@ -217,7 +184,8 @@ const AppointmentDetails = () => {
       navigate(-1);
     } catch (error) {
       console.error("Error cancelling appointment:", error);
-      const errorMessage = error.response?.data?.message || "Failed to cancel appointment";
+      const errorMessage =
+        error.response?.data?.message || "Failed to cancel appointment";
       await Swal.fire({
         title: "Error!",
         text: errorMessage,
@@ -230,199 +198,273 @@ const AppointmentDetails = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-6">
-  <div className="max-w-6xl mx-auto space-y-8">
+    <div className={`min-h-screen ${pageBg}`}>
+      <div className="max-w-6xl mx-auto p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-  <div>
+          <div className="text-black">
+            <p className="text-md font-semibold tracking-widest uppercase mb-1">
+              Appointment Details
+            </p>
+            <h1 className="text-2xl font-bold">Booking Overview</h1>
+            <p className="text-slate-500 text-sm mt-0.5">
+              View full information about your booking
+            </p>
+          </div>
+          <span
+            className={`px-4 py-1.5 rounded-full text-xs font-bold tracking-wide border ${
+              visited
+                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                : status === "pending"
+                  ? "bg-amber-50 text-amber-700 border-amber-200"
+                  : status === "completed"
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                    : "bg-red-50 text-red-700 border-red-200"
+            }`}
+          >
+            {visited ? "VISITED" : status.toUpperCase()}
+          </span>
+        </div>
 
-    <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight">
-      Appointment Details
-    </h1>
-    <p className="text-gray-500 text-sm mt-1">
-      View full information about your booking
-    </p>
-  </div>
-
-  <span
-    className={`px-5 py-2 rounded-full text-xs font-bold shadow-sm ${
-      status === "pending"
-        ? "bg-yellow-100 text-yellow-700"
-        : status === "completed"
-        ? "bg-green-100 text-green-700"
-        : "bg-red-100 text-red-700"
-    }`}
-  >
-    {status.toUpperCase()}
-  </span>
-</div>
         {/* Appointment Summary */}
-        <div className="bg-white rounded-2xl shadow-lg p-8 mb-8 border border-blue-100">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">Appointment Summary</h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            {/* Date */}
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
-                <HiOutlineCalendar className="text-blue-600 text-xl" />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-gray-500 uppercase">Date</p>
-                <p className="font-semibold text-gray-900">
-                  {appointmentDateObj ? appointmentDateObj.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" }) : "N/A"}
+        <div className="bg-white/50 backdrop-blur-xl rounded-2xl border border-blue-100 shadow-sm overflow-hidden">
+          <div className="h-1.5 w-full bg-gradient-to-r from-blue-600 via-teal-400 to-emerald-400" />
+          <div className="p-8">
+            <h2 className="text-base font-semibold text-slate-800 mb-6 flex items-center gap-2">
+              <HiOutlineCalendar className="text-blue-500 text-lg" />
+              Appointment Summary
+            </h2>
+
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              {/* Date */}
+              <div className="bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl p-4 shadow-sm">
+                <p className="text-[10px] font-semibold text-blue-200 uppercase tracking-widest mb-1">
+                  Date
+                </p>
+                <p className="text-sm font-semibold text-white leading-tight">
+                  {appointmentDateObj
+                    ? appointmentDateObj.toLocaleDateString("en-US", {
+                        weekday: "short",
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                      })
+                    : "N/A"}
                 </p>
               </div>
-            </div>
 
-            {/* Time */}
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
-                <HiOutlineClock className="text-blue-600 text-xl" />
+              {/* Time */}
+              <div className="bg-gradient-to-br from-teal-400 to-teal-600 rounded-xl p-4 shadow-sm">
+                <p className="text-[10px] font-semibold text-teal-100 uppercase tracking-widest mb-1">
+                  Time
+                </p>
+                <p className="text-sm font-semibold text-white">
+                  {visitingHours}
+                </p>
               </div>
-              <div>
-                <p className="text-xs font-bold text-gray-500 uppercase">Time</p>
-                <p className="font-semibold text-gray-900">{visitingHours}</p>
-              </div>
-            </div>
 
-            {/* Fee */}
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
-                <TbCurrencyTaka className="text-blue-600 text-xl" />
+              {/* Fee */}
+              <div className="bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl p-4 shadow-sm">
+                <p className="text-[10px] font-semibold text-emerald-100 uppercase tracking-widest mb-1">
+                  Fee
+                </p>
+                <p className="text-sm font-semibold text-white">৳{fee}</p>
               </div>
-              <div>
-                <p className="text-xs font-bold text-gray-500 uppercase">Fee</p>
-                <p className="font-semibold text-gray-900">৳{fee}</p>
-              </div>
-            </div>
 
-            {/* Booked At */}
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
-                <HiOutlineClock className="text-blue-600 text-xl" />
+              {/* Type */}
+              <div className="bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl p-4 shadow-sm">
+                <p className="text-[10px] font-semibold text-violet-200 uppercase tracking-widest mb-1">
+                  Type
+                </p>
+                <p className="text-sm font-semibold text-white capitalize">
+                  {appointmentType}
+                </p>
               </div>
-              <div>
-                <p className="text-xs font-bold text-gray-500 uppercase">Booked At</p>
-                <p className="font-semibold text-gray-900 text-sm">
+
+              {/* Booked At */}
+              <div className="bg-gradient-to-br from-slate-500 to-slate-700 rounded-xl p-4 shadow-sm">
+                <p className="text-[10px] font-semibold text-slate-300 uppercase tracking-widest mb-1">
+                  Booked At
+                </p>
+                <p className="text-xs font-semibold text-white leading-tight">
                   {bookedAtObj ? bookedAtObj.toLocaleString() : "N/A"}
                 </p>
               </div>
             </div>
-          </div>
 
-          {/* Note */}
-          {note && (
-            <div className="mt-6 pt-6 border-t border-gray-200">
-              <p className="text-xs font-bold text-gray-500 uppercase mb-2">Special Notes</p>
-              <p className="text-gray-700 bg-blue-50 p-4 rounded-lg">{note}</p>
-            </div>
-          )}
-
-          {/* Queue Position */}
-          <div className="mt-6 pt-6 border-t border-gray-200">
-                <div className="flex items-center justify-between">
-                  <div className="px-6 py-2 text-lg font-bold bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-2xl shadow-md">
-                     <p className="text-xs font-bold text-white uppercase mb-2">Patients Position in Queue</p>
-                    Serial Number : {serialNumber}
+            {/* ✅ UPDATED: Notes AND Report Link Section */}
+            {(note || reportLink) && (
+              <div className="mt-8 pt-6 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* Show Note if exists */}
+                {note && (
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+                      <HiOutlineDocumentText className="text-amber-500" />
+                      Patient Notes
+                    </h3>
+                    <div className="bg-amber-50 border border-amber-100 rounded-xl p-5 relative h-full">
+                      <div className="absolute top-0 left-0 w-1 h-full bg-amber-400 rounded-l-xl"></div>
+                      <p className="text-amber-900 text-sm leading-relaxed italic">
+                        "{note}"
+                      </p>
+                    </div>
                   </div>
-                   {isNowWithinVisitingHours(visitingHours, appointment.appointmentDate) && (
-                    <div className="ml-3 px-6 py-2 rounded-lg bg-green-800 text-sm font-semibold text-white shadow-sm">
-                      Visited today: {visitedTodayCount}
-                     </div>
-                     )}
-               </div>
-            </div>
+                )}
 
-        </div>
-
-        {/* Doctor & Patient Info */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Doctor Info */}
-          <div className="bg-white rounded-2xl shadow-lg p-8 border border-green-100">
-            <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-              <RiStethoscopeLine className="text-green-600 text-2xl" />
-              Doctor Information
-            </h2>
-
-            <div className="flex flex-col items-center text-center mb-6">
-              {doctorPhoto ? (
-                <img
-                  src={doctor.photoURL}
-                  alt={doctorName}
-                  className="w-24 h-24 rounded-2xl object-cover shadow-lg mb-4 ring-4 ring-green-100"
-                />
-              ) : (
-                <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center text-white text-3xl font-bold shadow-lg mb-4 ring-4 ring-green-100">
-                  {doctorName?.charAt(0)}
-                </div>
-              )}
-              <div className="flex items-center gap-2 justify-center">
-                <h3 className="text-2xl font-bold text-gray-900">{doctorName}</h3>
-                <MdVerified className="text-blue-500 text-xl" />
+                {/* Show Report Link if exists */}
+                {reportLink && (
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
+                      <HiOutlineLink className="text-blue-500" />
+                      Attached Report
+                    </h3>
+                    <a 
+                      href={reportLink} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="block bg-blue-50 border border-blue-100 hover:bg-blue-100 rounded-xl p-5 relative h-full transition-colors group"
+                    >
+                      <div className="absolute top-0 left-0 w-1 h-full bg-blue-500 rounded-l-xl group-hover:bg-blue-600"></div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-blue-700 text-sm font-medium truncate pr-4">
+                          View Attached Document
+                        </span>
+                        <HiOutlineLink className="text-blue-500 text-lg" />
+                      </div>
+                    </a>
+                  </div>
+                )}
               </div>
-            </div>
+            )}
 
-            <div className="space-y-4">
-              <div className="flex items-start gap-3">
-                <RiStethoscopeLine className="text-green-600 text-lg mt-1" />
+            {/* Queue */}
+            <div className="mt-8 pt-6 border-t border-slate-100 flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-3 bg-gradient-to-r from-blue-600 to-blue-800 text-white px-6 py-3 rounded-xl shadow-sm">
                 <div>
-                  <p className="text-xs font-bold text-gray-500 uppercase">Specialty</p>
-                  <p className="font-semibold text-gray-900">{specialty}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Patient Info */}
-          <div className="bg-white rounded-2xl shadow-lg p-8 border border-purple-100">
-            <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-              <HiOutlineUser className="text-purple-600 text-2xl" />
-              Patient Information
-            </h2>
-
-            <div className="flex flex-col items-center text-center mb-6">
-              {patientPhoto ? (
-                <img
-                  src={patientPhoto}
-                  alt={patientName}
-                  className="w-24 h-24 rounded-2xl object-cover shadow-lg mb-4 ring-4 ring-purple-100"
-                />
-              ) : (
-                <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-3xl font-bold shadow-lg mb-4 ring-4 ring-purple-100">
-                  {patientName?.charAt(0)}
-                </div>
-              )}
-              <h3 className="text-2xl font-bold text-gray-900">{patientName}</h3>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-start gap-3">
-                <MdOutlineEmail className="text-purple-600 text-lg mt-1" />
-                <div>
-                  <p className="text-xs font-bold text-gray-500 uppercase">Email</p>
-                  <p className="font-semibold text-gray-900 break-all">{patientEmail}</p>
+                  <p className="text-[10px] font-semibold text-blue-200 uppercase tracking-widest">
+                    Queue position
+                  </p>
+                  <p className="text-base font-bold">Serial : {serialNumber}</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="mt-8 flex justify-center gap-4">
+        {/* Doctor & Patient */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Doctor */}
+          <div className="bg-white/50 backdrop-blur-xl rounded-2xl border border-teal-100 shadow-sm overflow-hidden">
+            <div className="h-1.5 w-full bg-gradient-to-r from-teal-400 to-emerald-500" />
+            <div className="p-8">
+              <h2 className="text-base font-semibold text-slate-800 mb-6 flex items-center gap-2">
+                <RiStethoscopeLine className="text-teal-500 text-lg" />
+                Doctor Information
+              </h2>
+
+              <div className="flex items-center gap-5 mb-6">
+                {doctorPhoto ? (
+                  <img
+                    src={doctor.photoURL}
+                    alt={doctorName}
+                    className="w-20 h-20 rounded-2xl object-cover border-2 border-teal-100"
+                  />
+                ) : (
+                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-teal-400 to-emerald-500 flex items-center justify-center text-white text-2xl font-bold shadow-sm">
+                    {doctorName?.charAt(0)}
+                  </div>
+                )}
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="text-lg font-bold text-slate-900">
+                      {doctorName}
+                    </h3>
+                    <MdVerified className="text-blue-500 text-base" />
+                  </div>
+                  <span className="inline-block mt-1 text-xs font-medium bg-teal-50 text-teal-700 border border-teal-100 px-3 py-1 rounded-full">
+                    {specialty}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 bg-gradient-to-r from-teal-50 to-emerald-50 rounded-xl p-4 border border-teal-100">
+                <RiStethoscopeLine className="text-teal-500 text-lg flex-shrink-0" />
+                <div>
+                  <p className="text-[10px] font-semibold text-teal-400 uppercase tracking-widest">
+                    Specialty
+                  </p>
+                  <p className="text-sm font-semibold text-teal-900">
+                    {specialty}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Patient */}
+          <div className="bg-white/50 backdrop-blur-xl rounded-2xl border border-violet-100 shadow-sm overflow-hidden">
+            <div className="h-1.5 w-full bg-gradient-to-r from-violet-500 to-purple-600" />
+            <div className="p-8">
+              <h2 className="text-base font-semibold text-slate-800 mb-6 flex items-center gap-2">
+                <HiOutlineUser className="text-violet-500 text-lg" />
+                Patient Information
+              </h2>
+
+              <div className="flex items-center gap-5 mb-6">
+                {patientPhoto ? (
+                  <img
+                    src={patientPhoto}
+                    alt={patientName}
+                    className="w-20 h-20 rounded-2xl object-cover border-2 border-violet-100"
+                  />
+                ) : (
+                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold shadow-sm">
+                    {patientName?.charAt(0)}
+                  </div>
+                )}
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">
+                    {patientName}
+                  </h3>
+                  <span className="inline-block mt-1 text-xs font-medium bg-violet-50 text-violet-700 border border-violet-100 px-3 py-1 rounded-full">
+                    Patient
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 bg-gradient-to-r from-violet-50 to-purple-50 rounded-xl p-4 border border-violet-100">
+                <MdOutlineEmail className="text-violet-500 text-lg flex-shrink-0" />
+                <div>
+                  <p className="text-[10px] font-semibold text-violet-400 uppercase tracking-widest">
+                    Email
+                  </p>
+                  <p className="text-sm font-semibold text-violet-900 break-all">
+                    {patientEmail}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex justify-center gap-3 pt-2 pb-6">
           <button
             onClick={() => navigate(-1)}
-            className="px-8 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors"
+            className="px-20 py-5 bg-gradient-to-r from-blue-600 to-blue-800 text-white text-sm font-semibold rounded-xl hover:from-blue-700 hover:to-blue-900 transition-all shadow-sm"
           >
             Back to Appointments
           </button>
-          {status === "pending" && (
+          {status === "pending" && !visited && (
             <button
               onClick={handleCancelAppointment}
               disabled={isCancelling}
-              className="px-8 py-3 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-9 py-2.5 bg-white border border-red-200 text-red-600 text-sm font-semibold rounded-xl hover:bg-red-600 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {isCancelling ? (
                 <>
-                  <span className="loading loading-spinner loading-sm" />
+                  <span className="loading loading-infinity loading-xl"></span>
                   Cancelling...
                 </>
               ) : (

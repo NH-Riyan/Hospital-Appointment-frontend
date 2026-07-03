@@ -1,61 +1,92 @@
-import React, { useContext, useState, useRef, useEffect } from 'react'
-import banner from '../../assets/banner.jpg'
-import { AuthContext } from '../../Context/AuthContext';
-import { useQuery } from '@tanstack/react-query';
-import { FiSearch } from 'react-icons/fi';
-import { IoClose } from 'react-icons/io5';
-import { MdOutlineLocalHospital } from 'react-icons/md';
-import { RiHeartPulseLine } from 'react-icons/ri';
-import { TbChevronDown } from 'react-icons/tb';
-import { BsCheckCircleFill } from 'react-icons/bs';
-import useAxiosSecure from '../Hooks/useAxiosSecure';
-import DoctorCard from '../Card/DoctorCard';
+import React, { useContext, useState, useRef, useEffect, useMemo } from "react";
+import banner from "../../assets/banner.jpg";
+import { AuthContext } from "../../Context/AuthContext";
+import { useQuery } from "@tanstack/react-query";
+import { FiSearch } from "react-icons/fi";
+import { IoClose } from "react-icons/io5";
+import { MdOutlineLocalHospital } from "react-icons/md";
+import { RiHeartPulseLine } from "react-icons/ri";
+import { TbChevronDown } from "react-icons/tb";
+import { BsCheckCircleFill } from "react-icons/bs";
+import useAxiosSecure from "../Hooks/useAxiosSecure";
+import DoctorCard from "../Card/DoctorCard";
 
 const specialties = [
-  { name: "Cardiology",              emoji: "❤️" },
-  { name: "Neurology",               emoji: "🧠" },
-  { name: "Dermatology",             emoji: "🩺" },
-  { name: "Orthopedics",             emoji: "🦴" },
-  { name: "Pediatrics",              emoji: "👶" },
-  { name: "General Medicine",        emoji: "💊" },
+  { name: "Cardiology", emoji: "❤️" },
+  { name: "Neurology", emoji: "🧠" },
+  { name: "Dermatology", emoji: "🩺" },
+  { name: "Orthopedics", emoji: "🦴" },
+  { name: "Pediatrics", emoji: "👶" },
+  { name: "General Medicine", emoji: "💊" },
   { name: "Gynecology & Obstetrics", emoji: "🌸" },
-  { name: "Psychiatry",              emoji: "🧘" },
-  { name: "Radiology",               emoji: "🔬" },
-  { name: "Oncology",                emoji: "🎗️" },
-  { name: "Gastroenterology",        emoji: "🫁" },
-  { name: "Endocrinology",           emoji: "⚗️" },
-  { name: "Urology",                 emoji: "💧" },
-  { name: "Nephrology",              emoji: "🫘" },
-  { name: "Pulmonology",             emoji: "💨" },
-  { name: "Ophthalmology",           emoji: "👁️" },
-  { name: "ENT (Otolaryngology)",    emoji: "👂" },
-  { name: "Anesthesiology",          emoji: "💉" },
-  { name: "Plastic Surgery",         emoji: "✂️" },
-  { name: "Physiotherapy",           emoji: "🏃" },
+  { name: "Psychiatry", emoji: "🧘" },
+  { name: "Radiology", emoji: "🔬" },
+  { name: "Oncology", emoji: "🎗️" },
+  { name: "Gastroenterology", emoji: "🫁" },
+  { name: "Endocrinology", emoji: "⚗️" },
+  { name: "Urology", emoji: "💧" },
+  { name: "Nephrology", emoji: "🫘" },
+  { name: "Pulmonology", emoji: "💨" },
+  { name: "Ophthalmology", emoji: "👁️" },
+  { name: "ENT (Otolaryngology)", emoji: "👂" },
+  { name: "Anesthesiology", emoji: "💉" },
+  { name: "Plastic Surgery", emoji: "✂️" },
+  { name: "Physiotherapy", emoji: "🏃" },
 ];
 
-const quickTags = ["Cardiology", "Neurology", "Dermatology", "Pediatrics", "Orthopedics"];
+const quickTags = [
+  "Cardiology",
+  "Neurology",
+  "Dermatology",
+  "Pediatrics",
+  "Orthopedics",
+];
 
 const Banner = () => {
-  const [query, setQuery]                         = useState("");
-  const [searchTag, setSearchTag]                 = useState("");
+  const [query, setQuery] = useState("");
+  const [searchTag, setSearchTag] = useState("");
   const [selectedSpecialty, setSelectedSpecialty] = useState(null);
-  const [specOpen, setSpecOpen]                   = useState(false);
-  const [filterQuery, setFilterQuery]             = useState("");
+  const [specOpen, setSpecOpen] = useState(false);
+  const [filterQuery, setFilterQuery] = useState("");
 
-  const specRef       = useRef(null);
-  const { user }      = useContext(AuthContext);
+  const specRef = useRef(null);
+  const { user } = useContext(AuthContext);
   const axiosInstance = useAxiosSecure();
 
-  // ── GET: fires when searchTag changes ────────────────────────────────────
-  const { isPending, isError, data: results = [] } = useQuery({
-    queryKey: ["searchDoctors", searchTag],
+  const {
+    isPending,
+    isError,
+    data: rawResults = [],
+  } = useQuery({
+    queryKey: ["allDoctors"],
     queryFn: async () => {
-      const res = await axiosInstance.get(`/doctors/search/${searchTag}`);
-      return res.data;
+      const res = await axiosInstance.get("/doctors");
+      return res.data || [];
     },
-    enabled: !!searchTag,
+    staleTime: 1000 * 60 * 5,
   });
+
+  const results = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+
+    return (rawResults || [])
+      .filter((doctor) => doctor.status === "approved")
+      .filter((doctor) => {
+        const name = (doctor.name || "").toLowerCase();
+
+        // 🔥 match starting words
+        const matchesName =
+          !normalizedQuery || name.startsWith(normalizedQuery);
+
+        // ✅ optional specialty filter
+        const matchesSpecialty =
+          !selectedSpecialty ||
+          (doctor.specialty || "").toLowerCase() ===
+            selectedSpecialty.toLowerCase();
+
+        return matchesName && matchesSpecialty;
+      });
+  }, [rawResults, query, selectedSpecialty]);
 
   // ── Helpers (unchanged) ───────────────────────────────────────────────────
   const handleSearch = (e) => {
@@ -75,18 +106,24 @@ const Banner = () => {
         setFilterQuery("");
       }
     };
-    document.addEventListener('mousedown', onDocClick);
-    return () => document.removeEventListener('mousedown', onDocClick);
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
   }, []);
 
   useEffect(() => {
-    if (!query && !selectedSpecialty) { setSearchTag(""); return; }
-    const timer = setTimeout(() => buildAndSetTag(query.trim(), selectedSpecialty), 500);
+    if (!query && !selectedSpecialty) {
+      setSearchTag("");
+      return;
+    }
+    const timer = setTimeout(
+      () => buildAndSetTag(query.trim(), selectedSpecialty),
+      500,
+    );
     return () => clearTimeout(timer);
   }, [query, selectedSpecialty]);
 
-  const filtered = specialties.filter(s =>
-    s.name.toLowerCase().includes(filterQuery.toLowerCase())
+  const filtered = specialties.filter((s) =>
+    s.name.toLowerCase().includes(filterQuery.toLowerCase()),
   );
 
   const chooseSpecialty = (name) => {
@@ -109,18 +146,20 @@ const Banner = () => {
     buildAndSetTag(query.trim(), next);
   };
 
-  const selectedObj = specialties.find(s => s.name === selectedSpecialty);
+  const selectedObj = specialties.find((s) => s.name === selectedSpecialty);
 
   return (
-    <div className="w-11/12 mx-auto pb-20 my-10">
-
+    <div className="w-11/12 mx-auto pb-20 mb-10">
       {/* ── Hero (unchanged) ── */}
       <div className="relative rounded-3xl shadow-2xl">
-        <img src={banner} alt="Hospital Banner" className="w-full h-[440px] rounded-2xl object-cover" />
+        <img
+          src={banner}
+          alt="Hospital Banner"
+          className="w-full h-[440px] rounded-2xl object-cover"
+        />
         <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-950/80 via-blue-900/55 to-transparent" />
 
         <div className="absolute inset-0 flex flex-col justify-center px-10 md:px-16 gap-4">
-
           <div className="badge badge-outline text-white border-white/30 bg-white/10 backdrop-blur-sm gap-2 py-3 px-4 text-xs font-semibold tracking-widest uppercase w-fit">
             <RiHeartPulseLine className="text-sky-400 text-sm" />
             Trusted Healthcare Platform
@@ -145,26 +184,35 @@ const Banner = () => {
             >
               <button
                 type="button"
-                onClick={() => setSpecOpen(o => !o)}
+                onClick={() => setSpecOpen((o) => !o)}
                 className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold
                   transition-all duration-200 cursor-pointer whitespace-nowrap shrink-0
-                  ${selectedSpecialty
-                    ? 'bg-blue-600 text-white hover:bg-blue-700'
-                    : 'bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100'}`}
+                  ${
+                    selectedSpecialty
+                      ? "bg-blue-600 text-white hover:bg-blue-700"
+                      : "bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100"
+                  }`}
               >
                 <MdOutlineLocalHospital className="text-base shrink-0" />
                 {selectedSpecialty ? (
                   <>
                     <span className="text-sm">{selectedObj?.emoji}</span>
-                    <span className="max-w-[90px] truncate">{selectedSpecialty}</span>
-                    <span onClick={clearSpecialty} className="ml-1 hover:opacity-70 transition-opacity">
+                    <span className="max-w-[90px] truncate">
+                      {selectedSpecialty}
+                    </span>
+                    <span
+                      onClick={clearSpecialty}
+                      className="ml-1 hover:opacity-70 transition-opacity"
+                    >
                       <IoClose className="text-base" />
                     </span>
                   </>
                 ) : (
                   <>
                     <span>Specialty</span>
-                    <TbChevronDown className={`text-base transition-transform duration-200 ${specOpen ? 'rotate-180' : ''}`} />
+                    <TbChevronDown
+                      className={`text-base transition-transform duration-200 ${specOpen ? "rotate-180" : ""}`}
+                    />
                   </>
                 )}
               </button>
@@ -173,17 +221,22 @@ const Banner = () => {
 
               <input
                 type="text"
-                placeholder="Search by doctor name or symptom…"
+                placeholder="Search by doctor name…"
                 value={query}
-                onChange={e => setQuery(e.target.value)}
+                onChange={(e) => setQuery(e.target.value)}
                 className="flex-1 bg-transparent outline-none text-sm text-gray-700 placeholder-gray-400 px-2 py-2 min-w-0"
               />
 
-              {isPending && searchTag && (
-                <span className="loading loading-spinner loading-sm text-blue-500 shrink-0" />
-              )}
+             {isPending && searchTag && (
+  <div className="absolute right-32 flex items-center">
+    <span className="loading loading-infinity loading-md text-sky-500"></span>
+  </div>
+)}
 
-              <button type="submit" className="btn btn-primary rounded-xl gap-2 text-sm px-5 shrink-0 border-0 bg-blue-600 hover:bg-blue-700 text-white">
+              <button
+                type="submit"
+                className="btn btn-primary rounded-xl gap-2 text-sm px-5 shrink-0 border-0 bg-blue-600 hover:bg-blue-700 text-white"
+              >
                 <FiSearch className="text-base" />
                 Search
               </button>
@@ -196,14 +249,16 @@ const Banner = () => {
                     type="text"
                     placeholder="Filter specialties…"
                     value={filterQuery}
-                    onChange={e => setFilterQuery(e.target.value)}
+                    onChange={(e) => setFilterQuery(e.target.value)}
                     autoFocus
                     className="input input-sm input-bordered w-full rounded-xl text-sm focus:outline-blue-400"
                   />
                 </div>
                 <ul className="max-h-56 overflow-y-auto py-2 px-2">
                   {filtered.length === 0 && (
-                    <li className="text-center text-gray-400 text-sm py-4">No specialty found</li>
+                    <li className="text-center text-gray-400 text-sm py-4">
+                      No specialty found
+                    </li>
                   )}
                   {filtered.map(({ name, emoji }) => (
                     <li
@@ -211,11 +266,13 @@ const Banner = () => {
                       onClick={() => chooseSpecialty(name)}
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium
                         transition-colors duration-150
-                        ${selectedSpecialty === name ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'}`}
+                        ${selectedSpecialty === name ? "bg-blue-50 text-blue-700" : "text-gray-700 hover:bg-gray-50"}`}
                     >
                       <span className="text-base w-5 text-center">{emoji}</span>
                       <span className="flex-1">{name}</span>
-                      {selectedSpecialty === name && <BsCheckCircleFill className="text-blue-500 text-sm" />}
+                      {selectedSpecialty === name && (
+                        <BsCheckCircleFill className="text-blue-500 text-sm" />
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -224,8 +281,8 @@ const Banner = () => {
           </div>
 
           <div className="flex flex-wrap gap-2 mt-1">
-            {quickTags.map(tag => {
-              const obj = specialties.find(s => s.name === tag);
+            {quickTags.map((tag) => {
+              const obj = specialties.find((s) => s.name === tag);
               const isActive = selectedSpecialty === tag;
               return (
                 <button
@@ -233,9 +290,11 @@ const Banner = () => {
                   type="button"
                   onClick={() => handleQuickTag(tag)}
                   className={`badge gap-1.5 py-3 px-3 text-xs font-semibold cursor-pointer border transition-all duration-200
-                    ${isActive
-                      ? 'bg-sky-400 border-sky-400 text-blue-950'
-                      : 'bg-white/10 backdrop-blur-sm border-white/25 text-white hover:bg-white/20'}`}
+                    ${
+                      isActive
+                        ? "bg-sky-400 border-sky-400 text-blue-950"
+                        : "bg-white/10 backdrop-blur-sm border-white/25 text-white hover:bg-white/20"
+                    }`}
                 >
                   {obj?.emoji} {tag}
                 </button>
@@ -246,27 +305,24 @@ const Banner = () => {
       </div>
 
       {/* ── Search Results ── */}
-      {searchTag && (
+      {(query || selectedSpecialty) &&  (
         <div className="mt-8">
-
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-lg font-bold text-gray-800">
                 {isPending
                   ? "Searching…"
-                  : `${results.length} doctor${results.length !== 1 ? 's' : ''} found`}
+                  : `${results.length} doctor${results.length !== 1 ? "s" : ""} found`}
               </h2>
-              {!isPending && (query || selectedSpecialty) && (
-                <p className="text-xs text-gray-400 mt-0.5">
-                  {query && <>for "<span className="text-gray-600 font-medium">{query}</span>"</>}
-                  {query && selectedSpecialty && " in "}
-                  {selectedSpecialty && <span className="text-blue-600 font-medium">{selectedSpecialty}</span>}
-                </p>
-              )}
+    
             </div>
             <button
-              onClick={() => { setSearchTag(""); setQuery(""); setSelectedSpecialty(null); }}
+              onClick={() => {
+                setSearchTag("");
+                setQuery("");
+                setSelectedSpecialty(null);
+              }}
               className="btn btn-ghost btn-sm gap-1 text-gray-500 hover:text-red-500"
             >
               <IoClose /> Clear results
@@ -283,8 +339,11 @@ const Banner = () => {
           {/* Skeleton loaders — match DoctorCard shape */}
           {isPending && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {[1, 2, 3, 4, 5, 6].map(i => (
-                <div key={i} className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden animate-pulse">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div
+                  key={i}
+                  className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden animate-pulse"
+                >
                   <div className="h-1.5 bg-gray-200 w-full" />
                   <div className="p-5 space-y-4">
                     <div className="flex gap-4">
@@ -312,12 +371,20 @@ const Banner = () => {
 
           {/* No results */}
           {!isPending && !isError && results.length === 0 && (
-            <div className="text-center py-20 bg-white rounded-3xl border border-gray-100 shadow-sm">
+            <div className="text-center py-20 bg-white/80 backdrop-blur-xl rounded-3xl border border-gray-100 shadow-sm">
               <p className="text-5xl mb-4">🔍</p>
-              <p className="font-bold text-gray-700 text-lg">No doctors found</p>
-              <p className="text-sm text-gray-400 mt-1 mb-5">Try a different name or specialty</p>
+              <p className="font-bold text-gray-700 text-lg">
+                No doctors found
+              </p>
+              <p className="text-sm text-gray-400 mt-1 mb-5">
+                Try a different doctor name or specialty
+              </p>
               <button
-                onClick={() => { setSearchTag(""); setQuery(""); setSelectedSpecialty(null); }}
+                onClick={() => {
+                  setSearchTag("");
+                  setQuery("");
+                  setSelectedSpecialty(null);
+                }}
                 className="btn btn-sm btn-outline rounded-xl border-gray-300 text-gray-500"
               >
                 Clear search
@@ -328,14 +395,13 @@ const Banner = () => {
           {/* ✅ Doctor Cards Grid — mapped from results */}
           {!isPending && results.length > 0 && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {results.map(doctor => (
+              {results.map((doctor) => (
                 <DoctorCard key={doctor._id} doctor={doctor} />
               ))}
             </div>
           )}
         </div>
       )}
-
     </div>
   );
 };
