@@ -3,16 +3,16 @@ import { Link, NavLink, useNavigate } from "react-router";
 import { AuthContext } from "../../Context/AuthContext";
 import useAxiosSecure from "../Hooks/useAxiosSecure";
 import useUserRole from "../Hooks/useUserRole";
-import { 
-  FaHospital, 
-  FaSignOutAlt, 
-  FaUser, 
-  FaFlask, 
-  FaHistory, 
-  FaUserMd, 
+import {
+  FaHospital,
+  FaSignOutAlt,
+  FaUser,
+  FaFlask,
+  FaHistory,
+  FaUserMd,
   FaFileMedical,
-  FaClipboardList 
-} from "react-icons/fa"; 
+  FaClipboardList,
+} from "react-icons/fa";
 
 const Navbar = () => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -70,7 +70,7 @@ const Navbar = () => {
 
           {/* Test Bookings */}
           <NavLink
-            to="/tests" 
+            to="/tests"
             className={({ isActive }) =>
               `px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center gap-2 ${
                 isActive
@@ -112,7 +112,6 @@ const Navbar = () => {
             <FaHistory className="text-xs" />
             Report History
           </NavLink>
-
         </>
       ) : role === "doctor" ? (
         // 👨‍⚕️ DOCTOR VIEW: Only Appointments
@@ -150,7 +149,7 @@ const Navbar = () => {
           <NavLink
             to="/user-reports"
             className={({ isActive }) =>
-              `px-10 py-2 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center gap-2 ${
+              `px-6j py-2 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center gap-2 ${
                 isActive
                   ? "bg-gradient-to-r from-sky-100 to-teal-100 text-sky-700 shadow-sm"
                   : "text-slate-600 hover:text-sky-600 hover:bg-sky-50"
@@ -245,7 +244,7 @@ const Navbar = () => {
               <div className="flex items-center gap-3">
                 <Link
                   to="/auth/login"
-                  className="px-4 py-2 rounded-xl text-sky-600 font-semibold hover:bg-sky-50 transition"
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-sky-600 to-teal-500 text-white font-semibold shadow-md hover:shadow-lg transition"
                 >
                   Login
                 </Link>
